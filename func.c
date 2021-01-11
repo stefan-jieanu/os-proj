@@ -154,38 +154,61 @@ void execute_cp(char **args, int argc)
 
 void execute_tee(char **args, int argc)
 {
-    char input[216];
-    fgets(input, sizeof(input), stdin);
-
-    // Looking for '-a' argument to determine the file open mode
-    const char* file_open_mode = "w";
-    for (int i = 0; i < argc; i++) 
+    int status;
+    pid_t pid;
+    
+    if ((pid = fork()) < 0)
     {
-        if (strcmp(args[i], "-a") == 0)
-            file_open_mode = "a";
-    }
+        printf("Fork error");
+        exit(1);
+    } 
 
-    if (argc > 1) {
-        for (int i = 1; i < argc; i++) {
+    if (pid == 0)
+    {
+        redirect(args, &argc);
+
+        char input[216];
+        fgets(input, sizeof(input), stdin);
+
+        // Looking for '-a' argument to determine the file open mode
+        const char* file_open_mode = "w";
+        for (int i = 0; i < argc; i++) 
+        {
             if (strcmp(args[i], "-a") == 0)
-                continue;
+                file_open_mode = "a";
+        }
 
-            FILE *file;
+        if (argc > 1) {
+            for (int i = 1; i < argc; i++) {
+                if (strcmp(args[i], "-a") == 0)
+                    continue;
 
-            file = fopen(args[i], file_open_mode);
-            if (file == NULL)
-            {
-                printf("Error opening file");
-                exit(1);
+                FILE *file;
+
+                file = fopen(args[i], file_open_mode);
+                if (file == NULL)
+                {
+                    printf("Error opening file");
+                    exit(1);
+                }
+
+                fprintf(file, "%s", input);
+
+                fclose(file);
             }
+        }
 
-            fprintf(file, "%s", input);
-
-            fclose(file);
+        printf("%s\n", input);
+        exit(0);
+    }
+    else 
+    {
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            // printf("%d\n", WEXITSTATUS(status));
         }
     }
 
-    printf("%s\n", input);
 }
 
 void execute_dirname(char **args, int argc)
