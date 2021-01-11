@@ -2,4 +2,4 @@
 
 #include <stdio.h>
 
-void redirect(char **args, int argc);
+void redirect(char **args, int *argc);

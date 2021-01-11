@@ -3,8 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "func.h"
@@ -192,53 +190,78 @@ void execute_tee(char **args, int argc)
 
 void execute_dirname(char **args, int argc)
 {
-    if (argc - 1 > 1) 
-        printf("too many arguments\n");
-    else if (argc - 1 < 1)
-        printf("too few arguments\n");
+    int status;
+    pid_t pid;
+
+
+
+    if (pid == 0)
+    {
+        redirect(args, &argc);
+        printf("%d\n", argc);
+
+        if (argc - 1 > 1) 
+        {
+            printf("too many arguments\n");
+            exit(1);
+        }
+        else if (argc - 1 < 1)
+        {
+            printf("too few arguments\n");
+            exit(1);
+        }
+        else 
+        {
+
+            char result[216];
+
+            if (args[1][strlen(args[1]) - 1] == '/') 
+                args[1][strlen(args[1]) - 1] = '\0';
+
+            // Count the slashes, it there are none just output '.'
+            int slashes = 0;
+            for (int i = 0; i < strlen(args[1]); i++)
+                if (args[1][i] == '/')
+                    slashes++;
+            
+            if (slashes == 0) 
+            {
+                result[0] = '.';
+                result[1] = '\0';
+            }
+            else if (slashes == 1 && args[1][0] == '/') 
+            {
+                result[0] = '/';
+                result[1] = '\0';
+            }
+            else
+            {
+                int removed_chars = 0;
+                int result_size = 0;
+
+                for (int i = strlen(args[1]) - 1; i >= 0; i--) 
+                {
+                    if (args[1][i] == '/')
+                    {
+                        for (int j = 0; j < i; j++)
+                            result[result_size++] = args[1][j];
+                        break;
+                    }
+                    
+                }
+                result[result_size] = '\0';
+            }
+
+            printf("%s\n", result);
+            exit(0);
+        }
+    }
     else 
     {
-        char result[216];
-
-        if (args[1][strlen(args[1]) - 1] == '/') 
-            args[1][strlen(args[1]) - 1] = '\0';
-
-        // Count the slashes, it there are none just output '.'
-        int slashes = 0;
-        for (int i = 0; i < strlen(args[1]); i++)
-            if (args[1][i] == '/')
-                slashes++;
-        
-        if (slashes == 0) 
-        {
-            result[0] = '.';
-            result[1] = '\0';
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            // printf("%d\n", WEXITSTATUS(status));
         }
-        else if (slashes == 1 && args[1][0] == '/') 
-        {
-            result[0] = '/';
-            result[1] = '\0';
-        }
-        else
-        {
-            int removed_chars = 0;
-            int result_size = 0;
-
-            for (int i = strlen(args[1]) - 1; i >= 0; i--) 
-            {
-                if (args[1][i] == '/')
-                {
-                    for (int j = 0; j < i; j++)
-                        result[result_size++] = args[1][j];
-                    break;
-                }
-                
-            }
-            result[result_size] = '\0';
-        }
-
-        
-        printf("%s\n", result);
     }
 }
 
@@ -248,21 +271,6 @@ void execute_command(char **args, int argc)
     int status;
     pid_t pid;
 
-    // The index of ">", "<", "|" operators
-    int out_redirect = 0;
-    int in_redirect = 0;
-    int pipe_operator = 0;
-
-    for (int i = 0; i < argc; i++) 
-    {
-        if (strcmp(args[i], ">") == 0) out_redirect = i; 
-        if (strcmp(args[i], "<") == 0) in_redirect = i; 
-        if (strcmp(args[i], "|") == 0) pipe_operator = i; 
-    }
-
-    redirect(args, argc);
-
-    // If we have no operators just print the output to the console
     if ((pid = fork()) < 0)
     {
         printf("Fork error");
@@ -271,25 +279,8 @@ void execute_command(char **args, int argc)
 
     if (pid == 0)
     {   
-        if (out_redirect != 0) {
-            int file = open(args[out_redirect + 1], O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IRGRP | S_IWGRP |S_IWUSR);
-            dup2(file, 1);
-            close(file);
-
-            args[out_redirect] = '\0';
-        }
-        else if (in_redirect != 0)
-        {
-            int file = open(args[in_redirect + 1], O_RDONLY);
-            if (file < 0) {
-                printf("Failed: %s\n", strerror(errno));
-            }
-            
-            dup2(file, STDIN_FILENO);
-            close(file);
-
-            args[in_redirect] = '\0';
-        }
+        // Redirecting the output or the input
+        redirect(args, &argc);    
 
         if (execvp(args[0], args) < 0) {
             printf("Command failed: %s\n", strerror(errno));
@@ -301,6 +292,7 @@ void execute_command(char **args, int argc)
         waitpid(pid, &status, 0);
         if (WIFEXITED(status)) {
             // printf("%d\n", WEXITSTATUS(status));
+            printf("\n");
         }
     }
 }
