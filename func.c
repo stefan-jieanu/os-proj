@@ -11,145 +11,168 @@
 
 void execute_cp(char **args, int argc)
 {
-    int i_flag = 0, r_flag = 0, t_flag = 0, v_flag = 0;
-    char* destination;
-    char source[256]; source[0] = '\0';
-    int source_size = 0;
+    int status;
+    pid_t pid;
 
-    for (int i = 1; i < argc; i++)
+    if ((pid = fork()) < 0)
     {
-        if (strcmp(args[i], "-i") == 0) 
-            i_flag = 1;
-        else if (strcmp(args[i], "-r") == 0 || strcmp(args[i], "-R") == 0) 
-            r_flag = 1;
-        else if (strcmp(args[i], "-t") == 0)
+        printf("Fork error");
+        exit(1);
+    }
+
+    if (pid == 0)
+    {
+        redirect(args, &argc);
+        
+        int i_flag = 0, r_flag = 0, t_flag = 0, v_flag = 0;
+        char* destination;
+        char source[256]; source[0] = '\0';
+        int source_size = 0;
+
+        for (int i = 1; i < argc; i++)
         {
-            t_flag = 1;
-            destination = (char*) malloc(sizeof(args[i+1]) + 1);
-            destination = args[i+1];
-            i++;
+            if (strcmp(args[i], "-i") == 0) 
+                i_flag = 1;
+            else if (strcmp(args[i], "-r") == 0 || strcmp(args[i], "-R") == 0) 
+                r_flag = 1;
+            else if (strcmp(args[i], "-t") == 0)
+            {
+                t_flag = 1;
+                destination = (char*) malloc(sizeof(args[i+1]) + 1);
+                destination = args[i+1];
+                i++;
+                destination[strlen(destination)] = 0;
+            }
+            else if (strcmp(args[i], "-v") == 0)
+                v_flag = 1;
+            else 
+            {
+                if (t_flag == 1)
+                {
+                    if (strcmp(args[i], destination) != 0)
+                    {
+                        strcat(source, args[i]);
+                        strcat(source, " ");
+                        source_size++;
+                    }
+                }
+                else if (t_flag == 0)
+                    if (i != argc - 1)
+                    {
+                        strcat(source, args[i]);
+                        strcat(source, " ");
+                        source_size++;
+                    }
+            }
+        }
+        
+        // if no desination if specified with -t 
+        // use the last specified argument(should be a dir) as the desination
+        // if (t_flag == 0)
+        // {
+        //     int index = 0;
+        //     do {
+        //         index++;
+        //         destination = (char*) malloc(sizeof(args[argc - index] + 1));
+        //         destination = args[argc - index];
+        //         destination[strlen(destination)] = 0;
+        //     } while (strcmp(destination, "-v") != 0 || strcmp(destination, "-t") != 0 || strcmp(destination, "-r") != 0 || 
+        //         strcmp(destination, "-R") != 0 || strcmp(destination, "-i") != 0);
+        // }
+        if (t_flag == 0)
+        {
+            destination = (char*) malloc(sizeof(args[argc - 1] + 1));
+            destination = args[argc - 1];
             destination[strlen(destination)] = 0;
         }
-        else if (strcmp(args[i], "-v") == 0)
-            v_flag = 1;
-        else 
+
+        // Getting each file / directory that we need to copy
+        const char* separator = " ";
+        char* filename;
+        filename = strtok(source, separator);
+        while (filename != NULL)
         {
-            if (t_flag == 1)
+            FILE* source_file;
+            source_file = fopen(filename, "r");
+
+            if (source_file == NULL)
             {
-                if (strcmp(args[i], destination) != 0)
-                {
-                    strcat(source, args[i]);
-                    strcat(source, " ");
-                    source_size++;
+                printf("Couldn't open source file: %s\n", filename);
+                exit(1);
+            }
+
+            char target_file_path[256]; target_file_path[0] = 0;
+            // strcat(target_file_path, "/");
+            strcat(target_file_path, destination);
+            if (target_file_path[strlen(target_file_path) - 1] != '/')
+                strcat(target_file_path, "/");
+            strcat(target_file_path, filename);
+
+            if (i_flag)
+            {
+                // Check if the file already exists
+                if (access(target_file_path, F_OK) == 0) {
+                    // If the file already exists ask the user if they want to override it
+                    printf("'%s' already exists. replace it (y/n): ", target_file_path);
+
+                    char answer;
+                    scanf("%c", &answer);
+
+                    if (answer == 'y')
+                    {
+                    } 
+                    else if (answer == 'n')
+                    {
+                        fclose(source_file);
+                        filename = strtok(NULL, separator);
+                        break;
+                    }
+                    else 
+                    {
+                        fclose(source_file);
+                        filename = strtok(NULL, separator);
+                        break;
+                    }
                 }
             }
-            else if (t_flag == 0)
-                if (i != argc - 1)
-                {
-                    strcat(source, args[i]);
-                    strcat(source, " ");
-                    source_size++;
-                }
-        }
-    }
-    
-    // if no desination if specified with -t 
-    // use the last specified argument(should be a dir) as the desination
-    // if (t_flag == 0)
-    // {
-    //     int index = 0;
-    //     do {
-    //         index++;
-    //         destination = (char*) malloc(sizeof(args[argc - index] + 1));
-    //         destination = args[argc - index];
-    //         destination[strlen(destination)] = 0;
-    //     } while (strcmp(destination, "-v") != 0 || strcmp(destination, "-t") != 0 || strcmp(destination, "-r") != 0 || 
-    //         strcmp(destination, "-R") != 0 || strcmp(destination, "-i") != 0);
-    // }
-    if (t_flag == 0)
-    {
-        destination = (char*) malloc(sizeof(args[argc - 1] + 1));
-        destination = args[argc - 1];
-        destination[strlen(destination)] = 0;
-    }
 
-    // Getting each file / directory that we need to copy
-    const char* separator = " ";
-    char* filename;
-    filename = strtok(source, separator);
-    while (filename != NULL)
-    {
-        FILE* source_file;
-        source_file = fopen(filename, "r");
+            FILE* target_file;
+            target_file = fopen(target_file_path, "w");
 
-        if (source_file == NULL)
-        {
-            printf("Couldn't open source file: %s\n", filename);
-            exit(1);
-        }
-
-        char target_file_path[256]; target_file_path[0] = 0;
-        // strcat(target_file_path, "/");
-        strcat(target_file_path, destination);
-        if (target_file_path[strlen(target_file_path) - 1] != '/')
-            strcat(target_file_path, "/");
-        strcat(target_file_path, filename);
-
-        if (i_flag)
-        {
-            // Check if the file already exists
-            if (access(target_file_path, F_OK) == 0) {
-                // If the file already exists ask the user if they want to override it
-                printf("'%s' already exists. replace it (y/n): ", target_file_path);
-
-                char answer;
-                scanf("%c", &answer);
-
-                if (answer == 'y')
-                {
-                } 
-                else if (answer == 'n')
-                {
-                    fclose(source_file);
-                    filename = strtok(NULL, separator);
-                    break;
-                }
-                else 
-                {
-                    fclose(source_file);
-                    filename = strtok(NULL, separator);
-                    break;
-                }
+            if (target_file == NULL)
+            {
+                printf("Couldn't open destination: %s\n", target_file_path);
+                exit(1);
             }
+
+
+            char ch;
+            while ((ch = fgetc(source_file)) != EOF)
+                fputc(ch, target_file);
+
+            // If the '-v' argument is passed print info for the user
+            if (v_flag == 1)
+                printf("'%s' -> '%s'\n", filename, target_file_path);
+
+            fclose(source_file);
+            fclose(target_file);
+            filename = strtok(NULL, separator);
         }
-
-        FILE* target_file;
-        target_file = fopen(target_file_path, "w");
-
-        if (target_file == NULL)
-        {
-            printf("Couldn't open destination: %s\n", target_file_path);
-            exit(1);
-        }
-
-
-        char ch;
-        while ((ch = fgetc(source_file)) != EOF)
-            fputc(ch, target_file);
-
-        // If the '-v' argument is passed print info for the user
-        if (v_flag == 1)
-            printf("'%s' -> '%s'\n", filename, target_file_path);
-
-        fclose(source_file);
-        fclose(target_file);
-        filename = strtok(NULL, separator);
+        
+        exit(0);
+        // free(destination);
+        // for (int i = 0; i < source_size; i++) {
+        //     free(source[i]);
+        // }
     }
-
-    // free(destination);
-    // for (int i = 0; i < source_size; i++) {
-    //     free(source[i]);
-    // }
+    else 
+    {
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            // printf("%d\n", WEXITSTATUS(status));
+            printf("\n");
+        }
+    }
 }
 
 void execute_tee(char **args, int argc)
