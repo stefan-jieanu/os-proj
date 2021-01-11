@@ -1,0 +1,17 @@
+fold
+func.c
+func.h
+main
+main.c
+out.txt
+README.md
+test.txt
+fold
+func.c
+func.h
+helper.h
+main
+main.c
+out.txt
+README.md
+test.txt

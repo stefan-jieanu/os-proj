@@ -3,9 +3,12 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sys/fcntl.h>
+#include <sys/stat.h>
 #include <sys/wait.h>
 
 #include "func.h"
+#include "helper.h"
 
 
 void execute_cp(char **args, int argc)
@@ -54,6 +57,17 @@ void execute_cp(char **args, int argc)
     
     // if no desination if specified with -t 
     // use the last specified argument(should be a dir) as the desination
+    // if (t_flag == 0)
+    // {
+    //     int index = 0;
+    //     do {
+    //         index++;
+    //         destination = (char*) malloc(sizeof(args[argc - index] + 1));
+    //         destination = args[argc - index];
+    //         destination[strlen(destination)] = 0;
+    //     } while (strcmp(destination, "-v") != 0 || strcmp(destination, "-t") != 0 || strcmp(destination, "-r") != 0 || 
+    //         strcmp(destination, "-R") != 0 || strcmp(destination, "-i") != 0);
+    // }
     if (t_flag == 0)
     {
         destination = (char*) malloc(sizeof(args[argc - 1] + 1));
@@ -77,11 +91,39 @@ void execute_cp(char **args, int argc)
         }
 
         char target_file_path[256]; target_file_path[0] = 0;
-        strcat(target_file_path, "/");
+        // strcat(target_file_path, "/");
         strcat(target_file_path, destination);
         if (target_file_path[strlen(target_file_path) - 1] != '/')
-            target_file_path[strlen(target_file_path) - 1] = '/';
+            strcat(target_file_path, "/");
         strcat(target_file_path, filename);
+
+        if (i_flag)
+        {
+            // Check if the file already exists
+            if (access(target_file_path, F_OK) == 0) {
+                // If the file already exists ask the user if they want to override it
+                printf("'%s' already exists. replace it (y/n): ", target_file_path);
+
+                char answer;
+                scanf("%c", &answer);
+
+                if (answer == 'y')
+                {
+                } 
+                else if (answer == 'n')
+                {
+                    fclose(source_file);
+                    filename = strtok(NULL, separator);
+                    break;
+                }
+                else 
+                {
+                    fclose(source_file);
+                    filename = strtok(NULL, separator);
+                    break;
+                }
+            }
+        }
 
         FILE* target_file;
         target_file = fopen(target_file_path, "w");
@@ -92,9 +134,14 @@ void execute_cp(char **args, int argc)
             exit(1);
         }
 
+
         char ch;
         while ((ch = fgetc(source_file)) != EOF)
             fputc(ch, target_file);
+
+        // If the '-v' argument is passed print info for the user
+        if (v_flag == 1)
+            printf("'%s' -> '%s'\n", filename, target_file_path);
 
         fclose(source_file);
         fclose(target_file);
@@ -202,39 +249,58 @@ void execute_command(char **args, int argc)
     pid_t pid;
 
     // The index of ">", "<", "|" operators
-    int greater_operator = 0;
-    int greater2_operator = 0;
+    int out_redirect = 0;
+    int in_redirect = 0;
     int pipe_operator = 0;
 
     for (int i = 0; i < argc; i++) 
     {
-        if (strcmp(args[i], ">") == 0) greater_operator = 0; 
-        if (strcmp(args[i], ">>") == 0) greater2_operator = 0; 
-        if (strcmp(args[i], "|") == 0) pipe_operator = 0; 
+        if (strcmp(args[i], ">") == 0) out_redirect = i; 
+        if (strcmp(args[i], "<") == 0) in_redirect = i; 
+        if (strcmp(args[i], "|") == 0) pipe_operator = i; 
     }
 
+    redirect(args, argc);
+
     // If we have no operators just print the output to the console
-    if (greater_operator == 0 && greater2_operator == 0 && pipe_operator == 0)
+    if ((pid = fork()) < 0)
     {
-        if ((pid = fork()) < 0)
+        printf("Fork error");
+        exit(1);
+    }
+
+    if (pid == 0)
+    {   
+        if (out_redirect != 0) {
+            int file = open(args[out_redirect + 1], O_RDWR | O_CREAT | O_APPEND, S_IRUSR | S_IRGRP | S_IWGRP |S_IWUSR);
+            dup2(file, 1);
+            close(file);
+
+            args[out_redirect] = '\0';
+        }
+        else if (in_redirect != 0)
         {
-            printf("Fork error");
-            exit(1);
+            int file = open(args[in_redirect + 1], O_RDONLY);
+            if (file < 0) {
+                printf("Failed: %s\n", strerror(errno));
+            }
+            
+            dup2(file, STDIN_FILENO);
+            close(file);
+
+            args[in_redirect] = '\0';
         }
 
-        if (pid == 0)
-        {   
-            if (execvp(args[0], args) < 0) {
-                printf("Command failed: %s\n", strerror(errno));
-                exit(1);
-            }
+        if (execvp(args[0], args) < 0) {
+            printf("Command failed: %s\n", strerror(errno));
+            exit(1);
         }
-        else 
-        {
-            waitpid(pid, &status, 0);
-            if (WIFEXITED(status)) {
-                // printf("%d\n", WEXITSTATUS(status));
-            }
+    }
+    else 
+    {
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status)) {
+            // printf("%d\n", WEXITSTATUS(status));
         }
     }
 }
