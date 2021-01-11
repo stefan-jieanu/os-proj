@@ -193,8 +193,12 @@ void execute_dirname(char **args, int argc)
     int status;
     pid_t pid;
 
-
-
+    if ((pid = fork()) < 0)
+    {
+        printf("Fork error");
+        exit(1);
+    } 
+    
     if (pid == 0)
     {
         redirect(args, &argc);
