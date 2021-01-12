@@ -346,3 +346,22 @@ void execute_command(char **args, int argc)
         }
     }
 }
+
+void print_version()
+{
+    printf("*********************************************\n");
+    printf("        Author: Stefan Alexandru Jieanu      \n");
+    printf("        Version: 1.0.0                       \n");
+    printf("*********************************************\n");
+}
+
+void print_help()
+{
+    printf("*********************************************\n");
+    printf("Custom implemented commands:                 \n");
+    printf("    'cp' with parameters: -i, -r (-R), -t, -v\n");
+    printf("    'tee' with parameters: -a                \n");
+    printf("    'dirname' with no parameters             \n");
+    printf("All other commands work the same way they do in a normal terminal.\n");
+    printf("*********************************************\n");
+}

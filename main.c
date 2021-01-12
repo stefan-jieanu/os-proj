@@ -63,6 +63,8 @@ int main(int argc, char** argv)
         arguments[arguments_count] = 0;
 
         if (strcmp(arguments[0], "exit") == 0) should_terminate = 1;
+        else if (strcmp(arguments[0], "version") == 0) print_version();
+        else if (strcmp(arguments[0], "help") == 0) print_help();
         else if (strcmp(arguments[0], "cp") == 0) execute_cp(arguments, arguments_count);
         else if (strcmp(arguments[0], "tee") == 0) execute_tee(arguments, arguments_count);
         else if (strcmp(arguments[0], "dirname") == 0) execute_dirname(arguments, arguments_count);
