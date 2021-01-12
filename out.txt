@@ -1,3 +1,2 @@
-ieife jfie jsefie ifsl
-'func.h' -> 'fold/func.h'
-/home/stefan/Documents/os-proj>_^C'func.h' -> 'fold/func.h'
+/ust
+/

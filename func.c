@@ -8,8 +8,7 @@
 #include "func.h"
 #include "helper.h"
 
-
-void execute_cp(char **args, int argc)
+int execute_cp(char **args, int argc)
 {
     int status;
     pid_t pid;
@@ -170,12 +169,12 @@ void execute_cp(char **args, int argc)
         waitpid(pid, &status, 0);
         if (WIFEXITED(status)) {
             // printf("%d\n", WEXITSTATUS(status));
-            printf("\n");
+            return errno;
         }
     }
 }
 
-void execute_tee(char **args, int argc)
+int execute_tee(char **args, int argc)
 {
     int status;
     pid_t pid;
@@ -229,12 +228,13 @@ void execute_tee(char **args, int argc)
         waitpid(pid, &status, 0);
         if (WIFEXITED(status)) {
             // printf("%d\n", WEXITSTATUS(status));
+            return errno;
         }
     }
 
 }
 
-void execute_dirname(char **args, int argc)
+int execute_dirname(char **args, int argc)
 {
     int status;
     pid_t pid;
@@ -252,12 +252,12 @@ void execute_dirname(char **args, int argc)
 
         if (argc - 1 > 1) 
         {
-            printf("too many arguments\n");
+            fprintf(stderr, "too many arguments\n");
             exit(1);
         }
         else if (argc - 1 < 1)
         {
-            printf("too few arguments\n");
+            fprintf(stderr, "too few arguments\n");            
             exit(1);
         }
         else 
@@ -311,11 +311,12 @@ void execute_dirname(char **args, int argc)
         waitpid(pid, &status, 0);
         if (WIFEXITED(status)) {
             // printf("%d\n", WEXITSTATUS(status));
+            return errno;
         }
     }
 }
 
-void execute_command(char **args, int argc)
+int execute_command(char **args, int argc)
 {
     // Stores the process id for the process which will execute the command
     int status;
@@ -343,6 +344,7 @@ void execute_command(char **args, int argc)
         if (WIFEXITED(status)) {
             // printf("%d\n", WEXITSTATUS(status));
             printf("\n");
+            return errno;
         }
     }
 }
